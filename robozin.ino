@@ -8,10 +8,10 @@
 
 //Componentes
 #define ledFarol  3
-#define motorEsq1  4
-#define motorEsq2  5
-#define motorDir1  6
-#define motorDir2  7
+#define motorA1  4 //é um motor apenas, pois para cada motor são 2 pinos mais o pino de controle
+#define motorA2  5
+#define motorB1  6
+#define motorB2  7
 #define botaoModoFarol  8
 #define sensorDistanciaGatilho 9
 #define sensorDistanciaEco 10
@@ -40,6 +40,7 @@ void andarParaTras();
 void virarParaDireita();
 void virarParaEsquerda();
 void pararMotores();
+void pararMotoresComTrava();
 int medirDistancias();
 void mudarEstadoFarol();
 void controlaLedsFarol();
@@ -51,10 +52,10 @@ void setup()
   Serial.begin(9600);
   pinMode(ledParada, OUTPUT);
   pinMode(ledFarol, OUTPUT);
-  pinMode(motorEsq1, OUTPUT);
-  pinMode(motorEsq2, OUTPUT);
-  pinMode(motorDir1, OUTPUT);
-  pinMode(motorDir2, OUTPUT);
+  pinMode(motorA1, OUTPUT);
+  pinMode(motorA2, OUTPUT);
+  pinMode(motorB1, OUTPUT);
+  pinMode(motorB2, OUTPUT);
   pinMode(botaoModoFarol, INPUT_PULLUP);
   servoCabeca.attach(pinoServoCabeca);
   servoCabeca.write(90);
@@ -69,38 +70,35 @@ void setup()
 }
 
 void andarParaFrente() {
-  digitalWrite(motorEsq1, HIGH);
-  digitalWrite(motorEsq2, LOW);
-  digitalWrite(motorDir1, HIGH);
-  digitalWrite(motorDir2, LOW);
+  digitalWrite(motorA1, LOW);
+  digitalWrite(motorA2, HIGH);
 }
 
 void andarParaTras() {
-  digitalWrite(motorEsq1, LOW);
-  digitalWrite(motorEsq2, HIGH);
-  digitalWrite(motorDir1, LOW);
-  digitalWrite(motorDir2, HIGH);
+  digitalWrite(motorA1, HIGH);
+  digitalWrite(motorA2, LOW);
 }
 
 void virarParaDireita() {
-  digitalWrite(motorEsq1, LOW);
-  digitalWrite(motorEsq2, HIGH);
-  digitalWrite(motorDir1, HIGH);
-  digitalWrite(motorDir2, LOW);
+  //colocar comando do servo aqui
+  digitalWrite(motorB1, HIGH);
+  digitalWrite(motorB2, LOW);
+
 }
 
 void virarParaEsquerda() {
-  digitalWrite(motorEsq1, HIGH);
-  digitalWrite(motorEsq2, LOW);
-  digitalWrite(motorDir1, LOW);
-  digitalWrite(motorDir2, HIGH);
+  digitalWrite(motorB1, LOW);
+  digitalWrite(motorB2, HIGH);
 }
 
 void pararMotores() {
-  digitalWrite(motorEsq1, LOW);
-  digitalWrite(motorEsq2, LOW);
-  digitalWrite(motorDir1, LOW);
-  digitalWrite(motorDir2, LOW);
+  digitalWrite(motorA1, LOW);
+  digitalWrite(motorA2, LOW);
+}
+
+void pararMotoresComTrava() {
+  digitalWrite(motorA1, HIGH);
+  digitalWrite(motorA2, HIGH);
 }
 
 //retorna a direção do grau com maior distancia
@@ -169,33 +167,35 @@ void controlaLedsFarol() {
 }
 //valida se ele pode ir para frente ou para trás
 int validarMovimentos() {
-  Serial.println(analogRead(sensorInfraFrente));
+  //Serial.println(analogRead(sensorInfraFrente));
   if (analogRead(sensorInfraFrente) > DistanciaMaximaChao) {
     pararMotores();
-  } else {
-    andarParaFrente();
+    digitalWrite(LED_BUILTIN, HIGH); //acende o led no arduino
+    return 1;
   }
+  //colocar outros sensores
 }
 
 void loop()
 {
-  if (sonar.ping_cm() > 15) {
-    digitalWrite(LED_BUILTIN, LOW);
-    andarParaFrente();
-  } else {
-    digitalWrite(LED_BUILTIN, HIGH);
-    pararMotores();
-    int menorGrauDistancia = medirDistancias();
-    delay(10);
-  }
+  //  validarMovimentos();
+  //  if (sonar.ping_cm() > 15) {
+  //    digitalWrite(LED_BUILTIN, LOW); //apaga o led no arduino
+  //    andarParaFrente();
+  //
+  //  } else {
+  //    digitalWrite(LED_BUILTIN, HIGH); //acende o led no arduino
+  //    pararMotores();
+  //    int menorGrauDistancia = medirDistancias();
+  //
+  //  }
+  andarParaFrente();
+  virarParaDireita();
+  delay(5000);
+  virarParaEsquerda();
+  delay(5000);
+
   //valida os cliques do botão e controla o farol
   mudarEstadoFarol();
   controlaLedsFarol();
-  validarMovimentos();
-//  virarParaDireita();
-//  delay(tempo);
-//  virarParaEsquerda();
-//  delay(tempo);
-//  pararMotores();
-//  delay(tempo);
 }
