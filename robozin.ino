@@ -12,28 +12,28 @@ enum statusEnum
 
 //Configuracoes
 #define MAX_DISTANCE 450       // Maximum distance we want to ping for (in centimeters). Maximum sensor distance is rated at 400-500cm.
-#define TempoDebounce 50       //Tempo para eliminar o efeito Bounce EM MILISEGUNDOS
-#define DistanciaMaximaChao 60 //Valor limite de distancia retornado pelos sensores infravermelhos pra impedir quedas
-#define TEMPO_RAMPA 30         //Intervalo em milisegundos para as rampas de aceleracao e desaceleracao
-#define velocidade_maxima 255  //Velocidade máxima que o motor vai atingir
-#define minimaLuminosidade 200 //abaixo desse valor o farol entra no modo de máxima luminosidade se o modoFarol estiver no automatico
-#define maximaLuminosidade 500 //acima desse valor o farol apaga se o modoFarol estiver no automatico
+#define TempoDebounce 50       // Tempo para eliminar o efeito Bounce EM MILISEGUNDOS
+#define TEMPO_RAMPA 30         // Intervalo em milisegundos para as rampas de aceleracao e desaceleracao
+#define velocidade_maxima 255  // Velocidade máxima que o motor vai atingir (0 a 255)
+#define minimaLuminosidade 200 // Abaixo desse valor o farol entra no modo de máxima luminosidade se o modoFarol estiver no automatico (0 a 1024)
+#define maximaLuminosidade 500 // Acima desse valor o farol apaga se o modoFarol estiver no automatico (0 a 1024)
+#define distanciaMinima 15     // Valor que o robo vai ficar de paredes a sua frente (em centimetros)
 
 //Componentes
-#define ledFarol 3               //alimentação do farol menor
-#define motorA1 4                //é um motor apenas, pois para cada motor são 2 pinos mais o pino de velocidade
-#define motorA2 5                //segundo pino do motor
-#define motorASpeed 6            //controle de velocidade do motor
-#define botaoModoFarol 8         //Botão que muda o modo do farol
-#define sensorDistanciaGatilho 9 //Gatilho do sensor supersonico
-#define sensorDistanciaEco 10    //Receptor de eco do sensor supersonico
-#define pinoServoCabeca 11       //servo que movimenta o sensor supersonico
-#define buzzer 12                //buzina
-#define transistorSuperFarol 13  //porta que controla o transistor que liga o superFarol
-#define medidorDeTensao A0       //medidor de tensão (não implementado)
-#define sensorInfraFrente A1     //Usando portas analógicas porém está usando de forma digital
-#define sensorInfraTras A2       //Usando portas analógicas porém está usando de forma digital
-#define fotoResistor A5          //medição do fotoresitor
+#define ledFarol 3               // Alimentação do farol menor
+#define motorA1 4                // É um motor apenas, pois para cada motor são 2 pinos mais o pino de velocidade
+#define motorA2 5                // Segundo pino do motor
+#define motorASpeed 6            // Controle de velocidade do motor
+#define botaoModoFarol 8         // Botão que muda o modo do farol
+#define sensorDistanciaGatilho 9 // Gatilho do sensor supersonico
+#define sensorDistanciaEco 10    // Receptor de eco do sensor supersonico
+#define pinoServoCabeca 11       // Servo que movimenta o sensor supersonico
+#define buzzer 12                // Buzina
+#define transistorSuperFarol 13  // Porta que controla o transistor que liga o superFarol
+#define medidorDeTensao A0       // Medidor de tensão (não implementado)
+#define sensorInfraFrente A1     // Usando portas analógicas porém está usando de forma digital
+#define sensorInfraTras A2       // Usando portas analógicas porém está usando de forma digital
+#define fotoResistor A5          // Medição do fotoresitor
 
 //Objetos globais
 Servo servoCabeca;
@@ -127,10 +127,17 @@ void andarParaFrente()
   digitalWrite(motorA2, LOW);
   if (status != andando_para_frente)
   {
-    for (int i = 0; i < velocidade_maxima + 1; i = i + 10)
+    //feito com duas rampas para retirar o robo da inércia, mas depois ele se equilibra com a velocidade setada como máxima
+    for (int i = 0; i < 255 + 1; i = i + 10)
     {
       analogWrite(motorASpeed, i);
       delay(TEMPO_RAMPA); //intervalo para incrementar a variavel i
+    }
+    delay(TEMPO_RAMPA * 4);
+    for (int i = 255; i > velocidade_maxima; i = i - 10)
+    {
+      analogWrite(motorASpeed, i);
+      delay(TEMPO_RAMPA);
     }
     mudarStatus(andando_para_frente);
   }
@@ -276,28 +283,37 @@ void controlaLedsFarol(int modo)
 //valida se ele pode ir para frente ou para trás
 int validarMovimentos()
 {
-  //  Serial.println("Validando movimentos");
-  //  Serial.println(analogRead(sensorInfraFrente));
-
-  if (digitalRead(sensorInfraFrente) == LOW)
+  if (digitalRead(sensorInfraFrente) == HIGH)
+  {
+    digitalWrite(LED_BUILTIN, HIGH); //acende o led no arduino
+    return 2;
+  }
+  if (sonar.convert_cm(sonar.ping_median(5)) < distanciaMinima)
   {
     digitalWrite(LED_BUILTIN, HIGH); //acende o led no arduino
     return 1;
   }
-  // if (analogRead(sensorInfraTras) > DistanciaMaximaChao)
+  // if (digitalRead(sensorInfraTras)== HIGH)
   // {
-  //   //    digitalWrite(LED_BUILTIN, HIGH); //acende o led no arduino
-  //   return 2;
+  //   digitalWrite(LED_BUILTIN, HIGH); //acende o led no arduino
+  //   return 3;
   // }
   return 0;
-  //colocar outros sensores
 }
 
 void loop()
 {
-  if (validarMovimentos() == 0)
+  int movimento = validarMovimentos();
+  if (movimento == 0)
   {
     andarParaFrente();
+  }
+  else if (movimento == 1)
+  {
+    do
+    {
+      andarParaTras();
+    } while (sonar.convert_cm(sonar.ping_median(5)) < distanciaMinima + 50);
   }
   else
   {
